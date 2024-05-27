@@ -1,4 +1,39 @@
-# script-em-PowerShell-para-lista-de-programas-no-seu-pc
-Este script em PowerShell coleta uma lista de todos os programas instalados no seu computador Windows e salva essa lista em um arquivo de texto chamado InstalledPrograms.txt na raiz do drive C:.
+# Script para listar todos os programas instalados no Windows
 
+# Função para listar programas instalados via Windows Installer (MSI)
+function Get-InstalledPrograms {
+    Get-WmiObject -Class Win32_Product | Select-Object -Property Name, Version
+}
 
+# Função para listar programas instalados via Uninstall Registry Key
+function Get-UninstallPrograms {
+    $uninstallKeys = @(
+        "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*",
+        "HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*",
+        "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*"
+    )
+
+    $programs = @()
+    foreach ($key in $uninstallKeys) {
+        $programs += Get-ItemProperty $key | Select-Object -Property DisplayName, DisplayVersion
+    }
+    return $programs
+}
+
+# Obter programas instalados
+$installedPrograms = Get-InstalledPrograms
+$uninstallPrograms = Get-UninstallPrograms
+
+# Unir as duas listas e remover duplicatas
+$allPrograms = $installedPrograms + $uninstallPrograms | Sort-Object -Property DisplayName -Unique
+
+# Filtrar apenas programas com nomes definidos
+$allPrograms = $allPrograms | Where-Object { $_.DisplayName -ne $null }
+
+# Exibir a lista de programas
+$allPrograms | Format-Table -Property DisplayName, DisplayVersion -AutoSize
+
+# Salvar a lista em um arquivo de texto
+$allPrograms | Out-File -FilePath "C:\InstalledPrograms.txt"
+
+Write-Host "A lista de programas instalados foi salva em C:\InstalledPrograms.txt"
